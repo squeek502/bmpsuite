@@ -136,7 +136,7 @@ struct context {
 	int bad_reallybig;
 	int bad_bitcount;
 	int bad_planes;
-	int bad_palettesize;
+	int bad_palettesize; // 1=extremely large, 2=too large by one, 3=zero
 	int bad_rle;
 	int bad_rle_bis;
 	int bad_rle_ter;
@@ -1051,7 +1051,14 @@ static void write_bitmapinfoheader(struct context *c)
 
 		set_int32(c,14+24,c->xpelspermeter);
 		set_int32(c,14+28,c->ypelspermeter);
-		set_int32(c,14+32,(c->bad_palettesize) ? 0x12341234 : c->clr_used); // biClrUsed
+		int clr_used = c->clr_used;
+		if (c->bad_palettesize == 1)
+			clr_used = 0x12341234;
+		else if (c->bad_palettesize == 2)
+			clr_used++;
+		else if (c->bad_palettesize == 3)
+			clr_used = 0;
+		set_int32(c,14+32,clr_used); // biClrUsed
 		set_int32(c,14+36,0); // biClrImportant
 	}
 	if(c->headersize>=52 && c->headersize!=64) {
@@ -1552,6 +1559,22 @@ static int run(struct global_context *glctx, struct context *c)
 	c->bpp = 4;
 	c->pal_entries = 12;
 	c->pal_gs = 1;
+	set_calculated_fields(c);
+	if(!make_bmp_file(c)) goto done;
+
+	defaultbmp(glctx, c);
+	c->filename = "b/pal4used13.bmp";
+	c->bpp = 4;
+	c->pal_entries = 12;
+	c->bad_palettesize = 2;
+	set_calculated_fields(c);
+	if(!make_bmp_file(c)) goto done;
+
+	defaultbmp(glctx, c);
+	c->filename = "b/pal4used0.bmp";
+	c->bpp = 4;
+	c->pal_entries = 12;
+	c->bad_palettesize = 3;
 	set_calculated_fields(c);
 	if(!make_bmp_file(c)) goto done;
 
